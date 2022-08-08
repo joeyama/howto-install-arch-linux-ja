@@ -12,6 +12,14 @@ https://www.archlinux.jp/download/
 - microSDなどを使って起動可能なUSBドライブを作成します。Win環境ならRufusが楽です。  
 https://rufus.ie/en/  
 ※ 作成時は『DDモード』で書き込む必要があります。
+
+または複数のISOイメージを起動時に選択/起動できるVentoyが便利です。
+
+https://www.ventoy.net/en/index.html
+
+ 64Gなり128GなりのmicroSD1枚にWindows / Linux / その他レスキューイメージ等を集約できます。
+
+
 ## 1. UEFIモードで起動
 ★
 ## 1. インストール作業の開始
