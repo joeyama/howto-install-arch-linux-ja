@@ -1,4 +1,4 @@
-# howto-install-arch-linux-ja Arch Linuxのインストールガイド(2022/Aug)
+# howto-install-arch-linux-ja Arch Linuxのインストールガイド(2024/Oct)
 
 Arch Linuxのインストール手順をまとめました。情報源はこちら：  
 https://wiki.archlinux.org/title/Installation_guide
@@ -44,13 +44,14 @@ ISO環境のsshdはrootによるログインが可能ですがパスワードが
 - 時刻を設定する  
 たまーにGnuGPからみで面倒なエラーが出る場合があるので、ISO環境時点でも以下のコマンドを実行して時刻を同期させておくことをお勧めいたします。
 ```zsh
-# timedatectl set-ntp true
-# ln -sf /usr/share/zoneinfo/Asia/Tokyo /etc/localtime
-# hwclock --systohc
+timedatectl set-ntp true
+ln -sf /usr/share/zoneinfo/Asia/Tokyo /etc/localtime
+hwclock --systohc
+timedatectl status 
 ```  
 
 ## 4. ディスクのパーティション作成 & ファイルシステム選択
-USBブートのLinuxからターゲットPCのディスクは /dev/sda や /dev/nvme0n1 や /dev/mmcblk0 のような''ブロックデバイス名称''が割り当てられます。デバイスの名称を確認するには、lsblk を実行します。  
+USBブートのLinuxからターゲットPCのディスクは /dev/sda や /dev/nvme0n1 や /dev/mmcblk0 のようなブロックデバイス名称が割り当てられます。デバイスの名称を確認するには、lsblk を実行します。  
 ```zsh
 # lsblk
 ```  
@@ -64,6 +65,8 @@ USBブートのLinuxからターゲットPCのディスクは /dev/sda や /dev/
 # fdisk /dev/sda
 ```  
 EFIではEFI専用のパーティションとLinux本体を格納する2つのパーティションが必要です。スワップはパーティションではなくスワップファイルで同じこと実現できるので専用にパーティション作成はもはや不要です。
+
+
 
 
 
