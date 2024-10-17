@@ -5,7 +5,7 @@ https://wiki.archlinux.org/title/Installation_guide
 
 オフィシャルWikiは多彩な状況での選択肢を網羅している反面、選ぶに迷う局面が多々あります。現時点でわたくしが実行している手順をまとめました。
 
-## 1. インストールメディアの入手
+## インストールメディアの入手
 
 - こちらからISOファイルを取得してください。  
 https://www.archlinux.jp/download/  
@@ -14,7 +14,7 @@ https://rufus.ie/en/
 - または複数のISOイメージを起動時に選択/起動できるVentoyが便利です。64Gなり128GなりのmicroSD1枚にWindows / Linux / その他レスキューイメージ等を１つのUSBデバイスに集約できます。さらにはISOイメージを改変することなく特定ファイルを置換して起動するなど突っ込むと相当便利なのでお勧め。    
 https://www.ventoy.net/  
 
-## 2. USBデバイス等からUEFIモードで起動
+## USBデバイス等からUEFIモードで起動
 通常のPCの起動プロセスは大昔からあるBIOSとUEFIと2種類あります。可能ならばUEFIモードで起動 & UEFIでインストールすると何かと便利です。  
 BIOS起動かEFI起動かはArchLinuxの起動画面(=grubのメニュー画面)に表示されるので判別できます。
 
@@ -27,7 +27,7 @@ loadkeys jp106
 ls /sys/firmware/efi/efivars
 ```  
 
-## 3. インストール作業の開始
+## インストール作業の開始
 
 - (Optional)ssh経由で作業をする場合  
 最近のArchLinuxISO環境にはsshdが稼働しています。ターゲットマシンがDHCP経由でIPを取得していて、慣れた環境からSSH経由でインストールしたい場合以下の手順で可能となります。  
@@ -51,7 +51,7 @@ hwclock --systohc
 timedatectl status 
 ```  
 
-## 4. ディスクのパーティション作成 & ファイルシステム選択
+## ディスクのパーティション作成 & ファイルシステム選択
 USBブートのLinuxからターゲットPCのディスクは /dev/sda や /dev/nvme0n1 や /dev/mmcblk0 のようなブロックデバイス名称が割り当てられます。デバイスの名称を確認するには、lsblk を実行します。  
 ```zsh
 lsblk
@@ -170,6 +170,8 @@ mkfs.fat 4.2 (2021-01-31)
 # mount /dev/sda2 /mnt
 # mount --mkdir /dev/sda1 /mnt/boot
 ```
+## ミラーリストの更新とカーネルを含む各種パッケージのインストール
+
 続いてミラーリストファイルを編集します。本文書を含めて文章化されたミラーリスト例は現実に即していない可能性があります。ぱっちりミラーを計測して速い上位20をリストに記載すると高速に更新できるようになります。ISOイメージ起動時にミラーリストはこの作業が実行されていて、最速のもの10個が並んでいますが、意図的に日本とUSAのものに絞って20個並べるとこうなります。
 ```zsh
 # reflector -c jp -c us -n 20 >! /etc/pacman.d/mirrorlist
@@ -211,7 +213,7 @@ JPのみにしたい場合は『-c us』を削除してください。近隣ア�
 ```zsh
 # vim /etc/pacman.conf
 ```
-以下の2つがコメント行になっているので有効化します。
+以下の2つがコメント行になっているので有効化&数を増やします。
 
 ```zsh
 Color
@@ -224,7 +226,7 @@ ParallelDownloads = 20
 # pacman -S archlinux-keyring
 ```
 
-そしてターゲットドライブにカーネルその他をインストールします。『linux』を抜くとkernel無しでその他のものだけが入り起動不可となりますが特に警告も出ないので忘れずに指定してください(複数のlinuxイメージを選べる&linuxが不要な状況があるにはあります)。
+そしてターゲットドライブにカーネルその他をインストールします。『linux』を抜くとkernel無しでその他のものだけが入り起動不可となりますが特に警告も出ないので忘れずに指定してください(複数のlinuxイメージを選べるため&linuxが不要な状況があるにはあります)。
 以下はわたくしの例ですが、linux-firmware以降は適当に増減してください。
 ```zsh
 # pacstrap /mnt linux base base-devel linux-firmware man openssh vim neovim nano zsh zsh-lovers grml-zsh-config git wget mtools efitools dosfstools tmux go moreutils net-tools mc usbutils 
@@ -237,6 +239,183 @@ ParallelDownloads = 20
 ```zsh
 # cp /usr/bin/genfstab /mnt/root/
 ```
+## ターゲットドライブにchrootする
+
+続いてターゲットドライブにchrootして各種調整を行います。デフォルトではbashですが便利なzshにします。
+```zsh
+# arch-chroot /mnt
+[root@archiso /]# zsh
+root@archiso / #
+```
+ここでの作業は色々ありますが最低限passwdの設定とgrubを導入しないと起動しません。
+```zsh
+root@archiso / # passwd
+New password:
+Retype new password:
+passwd: password updated successfully
+```
+ターゲットマシンが起動時に時間があうように調整します。ついでにハードウェアクロックはUTCに、表示時刻はJSTにします。
+```zsh
+# ln -sf /usr/share/zoneinfo/Asia/Tokyo /etc/localtime
+# hwclock --systohc
+```
+続いてロケールの設定をします。日本語も使いたい方は追加・変更してください。
+```zsh
+# mv /etc/locale.gen /etc/locale.gen.original
+# echo "en_US.UTF-8 UTF-8" > /etc/locale.gen  && cat /etc/locale.gen
+# locale-gen
+Generating locales...
+  en_US.UTF-8... done
+Generation complete.
+```
+ホストネーム設定は本来はhostnamectlコマンドを使いますがchroot環境では動作しないので直接ファイルに書き込みます(または起動後に編集してください)。
+```zsh
+touch /etc/hostname
+echo "9020mt" >! /etc/hostname && cat /etc/hostname
+```
+## ネットワーク設定
+このあたりが公式wikiでは多様な状況下を列挙していてよくわかりません。わたくしの経験と理解の範囲で以下にまとめました。
+
+- DHCPからIPを取得する場合
+  dhcpcdを導入します。
+```zsh
+# pacman -S dhcpcd
+```
+  ネットワークインターフェイスが1つだけならそのまま起動設定してもいいですが、インターフェイス名を確認して指定すると盤石です。
+```zsh
+# ip link
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN mode DEFAULT group default qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+2: eno1: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP mode DEFAULT group default qlen 1000
+    link/ether 98:90:96:be:9e:f1 brd ff:ff:ff:ff:ff:ff
+    altname enp0s25```
+```
+この場合eno1(またはenp025)なので、以下のコマンドとなります。
+```zsh
+# systemctl enable dhcpcd@eno1.service
+```
+こまかな調整は/etc/dhcpcd.confを編集してください。
+
+- 固定IPを設定する場合
+  
+  dhcpcdでも固定IP設定できますが、IPエイリアスできない(または困難)その他所詮はDHCPクライアントなので、ArchLinux製のnetctlを使います。
+  ついでにopenresolvを導入してsystemd-reoslvconfに依存しないようにします。
+
+```zsh
+pacman -S netctl openresolv
+```
+/etc/netctlに移動します。examplesフォルダに各種の設定プロファイルがありますので、その中からethernet-staticを使います。
+無線/ppp/vlanその他は該当のプロファイルを参照してください。
+```zsh
+# cd /etc/netctl && ls /etc/netctl/examples
+```
+- ネットワークインターフェイス名称を変更する場合
+
+　netctlではインターフェイス名が必要です。が、eno1やenp0s25などの名称が気に入らない場合、先にインターフェイス名称の変更を行います。不要な方は次のステップへ進んでください。
+　ここではudevルールを変更します(macアドレスが固定&取得できる必要があります。そうでない場合Arch Wikiのドキュメントを参照してください)。
+ 
+まずmacアドレスを表示させます。 
+```zsh
+# cat /sys/class/net/*/address
+98:90:96:be:9e:f1
+00:00:00:00:00:00
+```
+この例ではネットワークインターフェイスは1つだけなので(00の連続ははloです)判別できますが、複数ある場合は「ip a」コマンドを使ってください。
+取得したmacアドレスをudev設定ファイルに記載します。
+```zsh
+# touch /etc/udev/rules.d/20-network.rules
+# vim /etc/udev/rules.d/20-network.rules
+```
+以下のうちaddressの場所にmacアドレスをコピペして(英字は小文字である必要があるのでコピペが一番です)、NAMEに指定したい名称をつけます。
+```zsh
+SUBSYSTEM=="net", ACTION=="add", ATTR{address}=="98:90:96:be:9e:f1", NAME="net0"
+```
+ > [!WARNING]
+> eth0を使いたいところですが、『固定の名前を付けるときに "ethX" や "wlanX" というような名前を使ってはいけません、起動時にカーネルと udev で競合状態が発生する可能性があります。』とあるように正常起動しない場合があります。
+> 昔はただの脅し(?)でしたが最近は本当に起動しない場合も増えてきましたので諦めるのが楽です。どうしてもeth0にしたい方はArch Wikiを参照してください。
+
+```zsh
+# cat /etc/udev/rules.d/10-network.rules
+SUBSYSTEM=="net", ACTION=="add", ATTR{address}=="98:90:96:be:9e:f1", NAME="net0"
+```
+(起動時に反映されます。手動でトリガーするなら以下のコマンドですがchroot環境では動作しません)
+```zsh
+# udevadm trigger --verbose --subsystem-match=net --action=add 
+```
+続いてようやくnetctlファイルです。examplesフォルダからethernet-staticをコピーして編集します。
+
+```zsh
+# cd /etc/netctl
+# cp examples/ethernet-static profile && cat profile
+```
+見ればわかるようなファイルですので環境に適切に編集してください。なおDNSを複数したい場合、Address同様に以下のようにします。
+```zsh
+DNS=('202.232.2.2 202.232.2.3')
+```
+編集が完了したらこのprofileを有効化します。
+```zsh
+# netctl start profile && netctl enable profile
+```
+以下執筆予定
+★openresolvの設定
+```zsh
+```
+またssdを有効化します。(必要に応じてsshd_configファイルを編集してください。)
+```zsh
+vim /etc/ssh/sshd_config
+systemctl enable sshd
+```
+root以外の一般ユーザーを作成します(rootではyayその他動作しないコマンドが多々あります)。
+```zsh
+# useradd -m -G wheel -s /bin/bash yourname
+# passwd yourname
+```
+sudoを使う場合以下のファイルを編集します。
+```zsh
+# vim /etc/sudoers
+```
+### ブートローダの導入と設定
+
+最後にブートローダとしてgrubを導入します。先にCPUにあわせてマイクロコードをインストールしてください。以下のいずれか1つだけです。
+
+```zsh
+# pacman -S intel-ucode
+```
+または
+```zsh
+pacman -S amd-ucode
+```
+grubと関連パッケージをインストールします。
+
+```zsh
+# pacman -S grub efibootmgr
+```
+grubを/bootパーティションに導入します。
+```zsh
+# grub-install --target=x86_64-efi --efi-directory=/boot --bootloader-id=GRUB
+```
+設定値を変更する場合は以下のファイルを編集します。その後grub-mkconfigコマンドを実行して反映させます。
+```zsh
+# vim /etc/default/grub
+# grub-mkconfig -o /boot/grub/grub.cfg
+```
+これで作業は完了です。chroot環境を脱して再起動するとArch Linuxが起動するはずです。
+
+```zsh
+# exit
+# reboot
+```
+## 起動後の各種設定
+★執筆予定
+```zsh
+```
+```zsh
+```
+
+
+
+
+
 
 
 
