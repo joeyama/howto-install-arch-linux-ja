@@ -235,7 +235,7 @@ ParallelDownloads = 20
 ```zsh
 # genfstab -U /mnt >> /mnt/etc/fstab
 ```
-このgenfstabコマンドはUUID指定でfstabリストを生成してくれる便利なスクリプトですが本体には入っていませんのでコピーしておくと将来ドライブを増減したときに便利です。
+このgenfstabコマンドはUUID指定でfstabリストを生成してくれる便利なスクリプトですが本体には入っていませんのでコピーしておくと将来ドライブを増減したときに便利です(-Uオプションをわすれずに)。
 ```zsh
 # cp /usr/bin/genfstab /mnt/root/
 ```
